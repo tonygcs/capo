@@ -1,1 +1,3 @@
-# capo
+# CAPO
+
+Golang HTTP server.
