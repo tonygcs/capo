@@ -1,74 +1,88 @@
-package main
+package capo
 
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gorilla/mux"
 )
+
+// Handler is the data type for the method that will handle the HTTP requests.
+type Handler func(*Context) error
 
 // Server is the main entity that will handle all request. It implements
 // "http.Handler" and "capo.Group" interfaces.
 type Server struct {
-	engine *gin.Engine
+	g Group
+	r *mux.Router
 }
 
 // New creates a new server instance.
 func New() *Server {
-	gin.SetMode(gin.ReleaseMode)
-	engine := gin.New()
-
+	router := mux.NewRouter()
 	return &Server{
-		engine: engine,
+		g: newGroup("/", nil, router),
+		r: router,
 	}
 }
 
 // ServeHTTP implements "http.Handler" interface.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.engine.ServeHTTP(w, r)
+	s.r.ServeHTTP(w, r)
 }
 
-// Use adds a handler function in the request handlers chain.
-func (s *Server) Use(handlers ...http.HandlerFunc) {
-	h := handlersToGinHandlers(handlers...)
-	s.engine.Use(h...)
+// Use adds the handlers that will run before each request. Note that if a
+// handler returns an error, the next handlers won't run.
+func (s *Server) UseBefore(handlers ...Handler) {
+	s.g.UseBefore(handlers...)
+}
+
+// UseAfter adds the handlers that will run after each request if it is not cancelled.
+func (s *Server) UseAfter(handlers ...Handler) {
+	s.g.UseAfter(handlers...)
+}
+
+// UseAfterAlways adds the handlers that will run after every request.
+func (s *Server) UseAfterAlways(handlers ...func(*Context)) {
+	s.g.UseAfterAlways(handlers...)
 }
 
 // Group creates a new group to handle http requests.
-func (s *Server) Group(relativePath string, handlers ...http.HandlerFunc) Group {
-	h := handlersToGinHandlers(handlers...)
-	ginG := s.engine.Group(relativePath, h...)
-	return newGroup(ginG)
+func (s *Server) Group(relativePath string) Group {
+	return s.g.Group(relativePath)
 }
 
 // Get handles a GET request.
-func (s *Server) Get(relativePath string, handler http.HandlerFunc) {
-	h := gin.WrapF(handler)
-	s.engine.GET(relativePath, h)
+func (s *Server) Get(relativePath string, handler Handler) {
+	s.g.Get(relativePath, handler)
 }
 
 // Get handles a POST request.
-func (s *Server) Post(relativePath string, handler http.HandlerFunc) {
-	h := gin.WrapF(handler)
-	s.engine.POST(relativePath, h)
+func (s *Server) Post(relativePath string, handler Handler) {
+	s.g.Post(relativePath, handler)
 }
 
 // Get handles a PUT request.
-func (s *Server) Put(relativePath string, handler http.HandlerFunc) {
-	h := gin.WrapF(handler)
-	s.engine.PUT(relativePath, h)
+func (s *Server) Put(relativePath string, handler Handler) {
+	s.g.Put(relativePath, handler)
 }
 
 // Get handles a DELETE request.
-func (s *Server) Delete(relativePath string, handler http.HandlerFunc) {
-	h := gin.WrapF(handler)
-	s.engine.DELETE(relativePath, h)
+func (s *Server) Delete(relativePath string, handler Handler) {
+	s.g.Delete(relativePath, handler)
 }
 
-func handlersToGinHandlers(handlers ...http.HandlerFunc) []gin.HandlerFunc {
-	ginHandlers := make([]gin.HandlerFunc, len(handlers))
-	for i, h := range handlers {
-		ginHandlers[i] = gin.WrapF(h)
-	}
+func (s *Server) path() string {
+	return s.g.path()
+}
 
-	return ginHandlers
+func (s *Server) getBeforeHandlers() []Handler {
+	return s.g.getBeforeHandlers()
+}
+
+func (s *Server) getAfterHandlers() []Handler {
+	return s.g.getAfterHandlers()
+}
+
+func (s *Server) getAfterAlwaysHandlers() []func(*Context) {
+	return s.g.getAfterAlwaysHandlers()
 }
