@@ -3,8 +3,10 @@ module github.com/tonygcs/capo
 go 1.19
 
 require (
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/stretchr/testify v1.8.1
+	github.com/tonygcs/gnalog v0.0.2
 )
 
 require (
