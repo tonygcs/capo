@@ -1,6 +1,7 @@
 package capo
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"path"
@@ -184,9 +185,47 @@ func (g *group) handlerToHttpHandler(handler Handler) http.HandlerFunc {
 
 	// Return the HTTP handlers.
 	return func(w http.ResponseWriter, r *http.Request) {
-		var reqErr error
 		ctx := NewContext(w, r)
 
+		defer func() {
+			// Handle panics.
+			if rec := recover(); rec != nil {
+				var err error
+				switch r := rec.(type) {
+				case error:
+					err = r
+				default:
+					err = fmt.Errorf("%s", r)
+				}
+
+				ctx.Cancel(err)
+			}
+
+			// Run the middlewares that always will run after the request.
+			for _, h := range afterAlways {
+				h(ctx)
+			}
+
+			// Close the response. It writes all data on it.
+			err := ctx.closeResponse()
+
+			// Handle any error on closing the response.
+			if err != nil {
+				// Set the 500 status code.
+				ctx.w.WriteHeader(http.StatusInternalServerError)
+
+				// Set the response body with the internal error.
+				internalErr := NewServerError(InternalServerErrorCode, err)
+				data, err := m.Marshal(internalErr)
+				if err == nil {
+					ctx.w.Write(data)
+				}
+			}
+		}()
+
+		var reqErr error
+
+		// Run before middlewares.
 		for _, h := range before {
 			reqErr = h(ctx)
 			if reqErr != nil {
@@ -195,10 +234,12 @@ func (g *group) handlerToHttpHandler(handler Handler) http.HandlerFunc {
 			}
 		}
 
+		// Run the request handler.
 		if reqErr == nil {
 			reqErr = handler(ctx)
 		}
 
+		// Run after middlewares.
 		if reqErr == nil {
 			for _, h := range after {
 				reqErr = h(ctx)
@@ -207,10 +248,6 @@ func (g *group) handlerToHttpHandler(handler Handler) http.HandlerFunc {
 					break
 				}
 			}
-		}
-
-		for _, h := range afterAlways {
-			h(ctx)
 		}
 	}
 }

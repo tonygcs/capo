@@ -17,7 +17,7 @@ func TestGroupHandleGetRequest(t *testing.T) {
 
 	msg := "get test message"
 	group.Get("/", func(ctx *Context) error {
-		ctx.Status(http.StatusOK).Write(&TestData{Message: msg})
+		ctx.Write(&TestData{Message: msg})
 		return nil
 	})
 
@@ -44,7 +44,7 @@ func TestGroupHandlePostRequest(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, reqMsg, req.Message)
 
-		ctx.Status(http.StatusOK).Write(&TestData{Message: resMsg})
+		ctx.Write(&TestData{Message: resMsg})
 		return nil
 	})
 
@@ -71,7 +71,7 @@ func TestGroupHandlePutRequest(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, reqMsg, req.Message)
 
-		ctx.Status(http.StatusOK).Write(&TestData{Message: resMsg})
+		ctx.Write(&TestData{Message: resMsg})
 		return nil
 	})
 
@@ -91,7 +91,7 @@ func TestGroupHandleDeleteRequest(t *testing.T) {
 
 	msg := "delete request test"
 	group.Delete("/request", func(ctx *Context) error {
-		ctx.Status(http.StatusOK).Write(&TestData{Message: msg})
+		ctx.Write(&TestData{Message: msg})
 		return nil
 	})
 
@@ -111,7 +111,7 @@ func TestRequestGroupAndEndpointWithoutPath(t *testing.T) {
 
 	msg := "test request"
 	group.Get("", func(ctx *Context) error {
-		ctx.Status(http.StatusOK).Write(&TestData{Message: msg})
+		ctx.Write(&TestData{Message: msg})
 		return nil
 	})
 
@@ -131,7 +131,7 @@ func TestRequestGroupWithoutPathAndEndpointWithPath(t *testing.T) {
 
 	msg := "test request"
 	group.Get("endpoint-path", func(ctx *Context) error {
-		ctx.Status(http.StatusOK).Write(&TestData{Message: msg})
+		ctx.Write(&TestData{Message: msg})
 		return nil
 	})
 
@@ -151,7 +151,7 @@ func TestRequestGroupWithPathAndEndpointWithoutPath(t *testing.T) {
 
 	msg := "test request"
 	group.Get("", func(ctx *Context) error {
-		ctx.Status(http.StatusOK).Write(&TestData{Message: msg})
+		ctx.Write(&TestData{Message: msg})
 		return nil
 	})
 
@@ -171,7 +171,7 @@ func TestRequestGroupAndEndpointWithPath(t *testing.T) {
 
 	msg := "test request"
 	group.Get("endpoint-path", func(ctx *Context) error {
-		ctx.Status(http.StatusOK).Write(&TestData{Message: msg})
+		ctx.Write(&TestData{Message: msg})
 		return nil
 	})
 
@@ -203,7 +203,7 @@ func testRequestWithNLevelsOfGroups(t *testing.T, levels int) {
 
 	msg := "test request"
 	group.Get("", func(ctx *Context) error {
-		ctx.Status(http.StatusOK).Write(&TestData{Message: msg})
+		ctx.Write(&TestData{Message: msg})
 		return nil
 	})
 

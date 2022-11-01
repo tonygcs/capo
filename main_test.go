@@ -23,7 +23,7 @@ func TestServerHandleGetRequest(t *testing.T) {
 
 	msg := "hello test"
 	serverHandler.Get("/", func(ctx *Context) error {
-		ctx.Status(http.StatusOK).Write(&TestData{Message: msg})
+		ctx.Write(&TestData{Message: msg})
 		return nil
 	})
 
@@ -49,7 +49,7 @@ func TestServerHandlePostRequest(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, reqMsg, req.Message)
 
-		ctx.Status(http.StatusOK).Write(&TestData{Message: resMsg})
+		ctx.Write(&TestData{Message: resMsg})
 		return nil
 	})
 
@@ -75,7 +75,7 @@ func TestServerHandlePutRequest(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, reqMsg, req.Message)
 
-		ctx.Status(http.StatusOK).Write(&TestData{Message: resMsg})
+		ctx.Write(&TestData{Message: resMsg})
 		return nil
 	})
 
@@ -94,7 +94,7 @@ func TestServerHandleDeleteRequest(t *testing.T) {
 
 	msg := "hello delete test"
 	serverHandler.Delete("/delete", func(ctx *Context) error {
-		ctx.Status(http.StatusOK).Write(&TestData{Message: msg})
+		ctx.Write(&TestData{Message: msg})
 		return nil
 	})
 
@@ -189,4 +189,19 @@ func TestAfterMiddlewareStopsPropagation(t *testing.T) {
 	err := client.NewRequest().URL(s.URL).Do(nil)
 	require.NoError(t, err)
 	require.Equal(t, 3, calls)
+}
+
+func TestAfterAlwaysIsCalledIfRequestPanics(t *testing.T) {
+	h := New()
+	calls := 0
+	h.UseAfterAlways(func(ctx *Context) { calls++ })
+
+	h.Get("", func(ctx *Context) error { panic("error") })
+
+	s := httptest.NewServer(h)
+	defer s.Close()
+
+	err := client.NewRequest().URL(s.URL).Do(nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, calls)
 }
