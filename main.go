@@ -25,6 +25,13 @@ func New() *Server {
 	}
 }
 
+// Default returns a server with the default configuration.
+func Default() *Server {
+	s := New()
+	s.UseAfterAlways(ErrorHandling)
+	return s
+}
+
 // ServeHTTP implements "http.Handler" interface.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.r.ServeHTTP(w, r)
