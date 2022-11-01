@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/tonygcs/capo/marshaler"
+	"github.com/tonygcs/gnalog"
 )
 
 var (
@@ -20,14 +21,18 @@ var m = marshaler.GetMarshaler()
 
 // Context is the request context.
 type Context struct {
-	ctx          context.Context
-	cancelled    bool
-	cancelCtxFn  func()
+	ctx         context.Context
+	cancelled   bool
+	cancelCtxFn func()
+	w           http.ResponseWriter
+	r           *http.Request
+
+	logger gnalog.Logger
+
 	err          error
 	status       int
 	responseData any
-	w            http.ResponseWriter
-	r            *http.Request
+	headers      map[string]string
 }
 
 // NewContext creates a new instance of context.
@@ -41,7 +46,18 @@ func NewContext(w http.ResponseWriter, r *http.Request) *Context {
 		cancelled:   false,
 		r:           r,
 		w:           w,
+		headers:     make(map[string]string),
 	}
+}
+
+// Request returns the http request entity.
+func (ctx *Context) Request() *http.Request {
+	return ctx.r
+}
+
+// AddHeader includes a header value in the response.
+func (ctx *Context) AddHeader(key string, value string) {
+	ctx.headers[key] = value
 }
 
 // Deadline is the context deadline.
@@ -62,6 +78,12 @@ func (ctx *Context) Err() error {
 // Value returns any value in the request context.
 func (ctx *Context) Value(key any) any {
 	return ctx.ctx.Value(key)
+}
+
+// With includes a value in the current context.
+func (ctx *Context) With(key any, value any) {
+	newCtx := context.WithValue(ctx.ctx, key, value)
+	ctx.ctx = newCtx
 }
 
 // Read takes the information in the request body and unmarshal the data in the
@@ -117,10 +139,30 @@ func (ctx *Context) Cancel(err error) error {
 	return err
 }
 
+// Logger returns the logger for the current context.
+func (ctx *Context) Logger() gnalog.Logger {
+	if ctx.logger != nil {
+		// Create default logger if it does not exists.
+		ctx.SetLogger(gnalog.New())
+	}
+
+	return ctx.logger
+}
+
+// SetLogger sets the context logger.
+func (ctx *Context) SetLogger(logger gnalog.Logger) {
+	ctx.logger = logger
+}
+
 func (ctx *Context) closeResponse() error {
 	// Set response status code.
 	if ctx.status > 0 {
 		ctx.w.WriteHeader(ctx.status)
+	}
+
+	// Add the headers.
+	for key, value := range ctx.headers {
+		ctx.w.Header().Add(key, value)
 	}
 
 	// Set the body data if it is needed.
@@ -134,5 +176,6 @@ func (ctx *Context) closeResponse() error {
 			return fmt.Errorf("cannot write the response :: %w", err)
 		}
 	}
+
 	return nil
 }
