@@ -20,12 +20,14 @@ var m = marshaler.GetMarshaler()
 
 // Context is the request context.
 type Context struct {
-	ctx         context.Context
-	cancelled   bool
-	cancelCtxFn func()
-	err         error
-	w           http.ResponseWriter
-	r           *http.Request
+	ctx          context.Context
+	cancelled    bool
+	cancelCtxFn  func()
+	err          error
+	status       int
+	responseData any
+	w            http.ResponseWriter
+	r            *http.Request
 }
 
 // NewContext creates a new instance of context.
@@ -54,7 +56,7 @@ func (ctx *Context) Done() <-chan struct{} {
 
 // Err is the context error.
 func (ctx *Context) Err() error {
-	return ctx.ctx.Err()
+	return ctx.err
 }
 
 // Value returns any value in the request context.
@@ -64,7 +66,7 @@ func (ctx *Context) Value(key any) any {
 
 // Read takes the information in the request body and unmarshal the data in the
 // entity provided.
-func (ctx *Context) Read(entity interface{}) error {
+func (ctx *Context) Read(entity any) error {
 	data, err := io.ReadAll(ctx.r.Body)
 	if err != nil {
 		return fmt.Errorf("cannot read request body :: %w", err)
@@ -83,21 +85,23 @@ func (ctx *Context) Read(entity interface{}) error {
 
 // Write marshals and write the information in the entity provided into the http
 // response.
-func (ctx *Context) Write(entity interface{}) error {
-	data, err := m.Marshal(entity)
-	if err != nil {
-		return fmt.Errorf("invalid entity format :: %w", err)
-	}
-	_, err = ctx.w.Write(data)
-	if err != nil {
-		return fmt.Errorf("cannot write the response :: %w", err)
-	}
-	return nil
+func (ctx *Context) Write(entity any) *Context {
+	ctx.responseData = entity
+	return ctx
 }
 
-// Status sets the response status and returns itself.
-func (ctx *Context) Status(status int) *Context {
-	ctx.w.WriteHeader(status)
+// Status returns the status code that the server will return to the client.
+func (ctx *Context) Status() int {
+	if ctx.status <= 0 {
+		return http.StatusOK
+	}
+
+	return ctx.status
+}
+
+// SetStatus sets the response status and returns itself.
+func (ctx *Context) SetStatus(status int) *Context {
+	ctx.status = status
 	return ctx
 }
 
@@ -111,4 +115,24 @@ func (ctx *Context) Cancel(err error) error {
 	}
 
 	return err
+}
+
+func (ctx *Context) closeResponse() error {
+	// Set response status code.
+	if ctx.status > 0 {
+		ctx.w.WriteHeader(ctx.status)
+	}
+
+	// Set the body data if it is needed.
+	if ctx.responseData != nil {
+		data, err := m.Marshal(ctx.responseData)
+		if err != nil {
+			return fmt.Errorf("invalid entity format :: %w", err)
+		}
+		_, err = ctx.w.Write(data)
+		if err != nil {
+			return fmt.Errorf("cannot write the response :: %w", err)
+		}
+	}
+	return nil
 }

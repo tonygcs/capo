@@ -42,8 +42,9 @@ func (ctx *Context[T, U]) Value(key any) any {
 
 // Write marshals and write the information in the entity provided into the http
 // response.
-func (ctx *Context[T, U]) Write(entity *U) error {
-	return ctx.ctx.Write(entity)
+func (ctx *Context[T, U]) Write(entity *U) *Context[T, U] {
+	ctx.ctx.Write(entity)
+	return ctx
 }
 
 // Cancel sets the error in the context and cancel it.
