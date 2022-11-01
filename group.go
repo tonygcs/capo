@@ -211,13 +211,18 @@ func (g *group) handlerToHttpHandler(handler Handler) http.HandlerFunc {
 
 			// Handle any error on closing the response.
 			if err != nil {
+				// Log the error.
+				ctx.Logger().With("error", err.Error()).Error("invalid response content")
+
 				// Set the 500 status code.
 				ctx.w.WriteHeader(http.StatusInternalServerError)
 
 				// Set the response body with the internal error.
 				internalErr := NewServerError(InternalServerErrorCode, err)
 				data, err := m.Marshal(internalErr)
-				if err == nil {
+				if err != nil {
+					ctx.Logger().With("error", err.Error()).Error("the internal server error is invalid")
+				} else {
 					ctx.w.Write(data)
 				}
 			}
